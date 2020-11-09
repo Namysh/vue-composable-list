@@ -1,34 +1,82 @@
-import { isRef, ref, onMounted, onBeforeUnmount, onBeforeMount } from 'vue';
+import { isRef, ref, onMounted, onBeforeUnmount } from 'vue';
 
-const useOnMouseMove = (element = ref(window)) => {
-    const _element = isRef(element) ? element : ref(element);
-    const x = ref(0);
-    const y = ref(0);
+const MOUSE_MOVE_EVENT = 'mousemove';
+const TOUCH_MOVE_EVENT = 'touchmove';
+
+const DEFAULT_OPTIONS = {
+    element: ref(window),
+    touch: false,
+    relative: false,
+};
+
+const DEFAULT_RELATIVE = {
+    left: 0,
+    top: 0,
+};
+
+const relativeHelper = (element, relative) =>
+    !relative || !element.getBoundingClientRect
+        ? DEFAULT_RELATIVE
+        : element.getBoundingClientRect();
+
+const EVENTS_HANDLERS = {
+    [MOUSE_MOVE_EVENT]: (event, x, y, relative) => {
+        const { left, top } = relativeHelper(event.currentTarget, relative);
+
+        x.value = event?.clientX - left || 0;
+        y.value = event?.clientY - top || 0;
+    },
+    [TOUCH_MOVE_EVENT]: (event, x, y, relative) => {
+        const { left, top } = relativeHelper(event.currentTarget, relative);
+        const finger = event.changedTouches[0];
+
+        x.value = finger?.clientX - left || 0;
+        y.value = finger?.clientY - top || 0;
+    },
+};
+
+export const useOnMouseMove = options => {
+    options = { ...DEFAULT_OPTIONS, ...(options || {}) };
+
+    const _element = isRef(options.element)
+        ? options.element
+        : ref(options.element);
+
+    const _events = [
+        MOUSE_MOVE_EVENT,
+        ...(options.touch ? [TOUCH_MOVE_EVENT] : []),
+    ];
+
+    const _eventsHandlers = {};
+
+    for (const event of _events)
+        _eventsHandlers[event] = e =>
+            EVENTS_HANDLERS[event](e, x, y, options.relative);
 
     let _hasEvent = false;
 
-    const _onMouseMove = event => {
-        x.value = event?.clientX || _element.value?.event?.clientX || 0;
-        y.value = event?.clientY || _element.value?.event?.clientY || 0;
-    };
+    const x = ref(0);
+    const y = ref(0);
 
     const removeEvent = () => {
         if (!_hasEvent) return false;
 
-        _element.value.removeEventListener('mousemove', _onMouseMove);
+        for (const event in _eventsHandlers)
+            _element.value.removeEventListener(event, _eventsHandlers[event]);
+
         return !(_hasEvent = false);
     };
 
     const addEvent = () => {
         if (_hasEvent) return false;
 
-        _element.value.addEventListener('mousemove', _onMouseMove);
+        for (const event in _eventsHandlers)
+            _element.value.addEventListener(event, _eventsHandlers[event], {
+                passive: true,
+            });
+
         return (_hasEvent = true);
     };
-
-    onBeforeMount(() => {
-        _onMouseMove();
-    });
 
     onMounted(() => {
         addEvent();
@@ -37,7 +85,11 @@ const useOnMouseMove = (element = ref(window)) => {
     onBeforeUnmount(() => {
         removeEvent();
     });
-    return { x, y, removeEvent, addEvent };
-};
 
-export { useOnMouseMove };
+    return {
+        x,
+        y,
+        removeEvent,
+        addEvent,
+    };
+};
