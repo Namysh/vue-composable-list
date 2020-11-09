@@ -1,7 +1,13 @@
 [onMouseMove([element])](#on-mouse-move)
-#### onMouseMove([element])
+#### onMouseMove([options])
 Requires :
-- `element` _(Object)_ (default `window`)
+- `options` _(Object)_
+  - `element` _(Object)_ (default `window`)
+    Event target
+  - `touch` _(Boolean)_ (default `false`)
+    Enables touch event
+  - `relative` _(Boolean)_ (default `false`)
+    Computes provided coordinates relative to the event target
 
 Provides :
 - `x` _(Number)_
@@ -12,6 +18,7 @@ Provides :
   - **Returns** _(Boolean)_
 
 Provides a set of **functions** and **properties** in order to use the `mousemove` event.
+> If touch event is activated, the first touch point (finger) will be choosed
 ##### Example 1
 ```js
 setup() {
@@ -22,6 +29,6 @@ setup() {
 ```js
 setup() {
   const div = ref(null);
-  return { ...useOnMouseMove(div) };
+  return { ...useOnMouseMove({ element: div, touch: true }) };
 }
 ```
